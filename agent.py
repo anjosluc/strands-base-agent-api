@@ -1,10 +1,11 @@
 import logging
 from mcp import stdio_client, StdioServerParameters
 from strands.session.file_session_manager import FileSessionManager
-from uuid import uuid4
+from strands_tools import retrieve
 from strands_tools.calculator import calculator
 from strands_tools.current_time import current_time
 from strands_tools.mcp_client import MCPClient
+from tools import search_vector_db
 from mcp.client.streamable_http import streamablehttp_client
 from strands import Agent
 import uvicorn
@@ -17,8 +18,6 @@ import os
 logging.basicConfig(level=logging.INFO)
 
 app = FastAPI()
-
-#session_manager = FileSessionManager(session_id="test")
 
 model = LiteLLMModel(
   client_args={
@@ -77,9 +76,10 @@ k8s_mcp = MCPClient(
   )
 )
 
-tools = [calculator, current_time]
+tools = [calculator, current_time, retrieve]
 
-def get_strands_agent():
+def get_strands_agent(session_id: str):
+  session_manager = FileSessionManager(session_id=session_id)
   with copilot_mcp, aws_docs_mcp, k8s_mcp:
     copilot_tools = copilot_mcp.list_tools_sync()
     aws_docs_tools = aws_docs_mcp.list_tools_sync()
@@ -94,17 +94,19 @@ def get_strands_agent():
       description="An agent to call Github, get datetime, among other ops",
       tools=all_tools,
       callback_handler=None,
-      #session_manager=session_manager,
+      session_manager=session_manager,
       model=model
     )
     return agent
 
 class Question(BaseModel):
   question: str
+  session_id: str
 
 @app.post("/question")
 def ask_question(question: Question):
-  agent = get_strands_agent()
+  session_id = question.session_id
+  agent = get_strands_agent(session_id)
   with copilot_mcp, aws_docs_mcp, k8s_mcp:
     response = agent(question.question)
     return str(response.message)
