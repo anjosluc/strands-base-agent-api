@@ -1,3 +1,4 @@
 strands-agents[a2a]
 strands-agents-tools
 strands-agents[litellm]
+kubectl-mcp-tool==1.2.0

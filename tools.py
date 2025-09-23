@@ -1,6 +1,6 @@
 import os
 import boto3
-from strands_tools import tool
+from strands import tool
 
 #@tool
 #def search_vector_db(query: str, customer_id: str) -> str:    

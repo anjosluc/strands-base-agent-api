@@ -5,7 +5,7 @@ from strands_tools import retrieve
 from strands_tools.calculator import calculator
 from strands_tools.current_time import current_time
 from strands_tools.mcp_client import MCPClient
-from tools import search_vector_db
+#from tools import search_vector_db
 from mcp.client.streamable_http import streamablehttp_client
 from strands import Agent
 import uvicorn
@@ -42,7 +42,7 @@ copilot_mcp = MCPClient(
 aws_docs_mcp = MCPClient(
   lambda: stdio_client(
     StdioServerParameters(
-        command="/Users/lucas/.local/bin/uvx", 
+        command="uvx", 
         args=["awslabs.aws-documentation-mcp-server@latest"]
     )
   )
@@ -51,7 +51,7 @@ aws_docs_mcp = MCPClient(
 #eks_mcp = MCPClient(
 #  lambda: stdio_client(
 #    StdioServerParameters(
-#      command="/Users/lucas/.local/bin/uvx", 
+#      command="uvx", 
 #      args=[
 #        "awslabs.eks-mcp-server@latest", 
 #        "--allow-write", 
@@ -67,11 +67,14 @@ aws_docs_mcp = MCPClient(
 k8s_mcp = MCPClient(
   lambda: stdio_client(
     StdioServerParameters(
-      command="/opt/homebrew/bin/npx", 
+      command="python3", 
       args=[
-        "-y",
-        "kubernetes-mcp-server@latest"
-      ]
+        "-m",
+        "kubectl_mcp_tool"
+      ],
+      env={
+        "KUBECONFIG":"/Users/lucas/.kube/config"
+      }
     )
   )
 )
