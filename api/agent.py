@@ -112,7 +112,7 @@ def ask_question(question: Question):
   agent = get_strands_agent(session_id)
   with copilot_mcp, aws_docs_mcp, k8s_mcp:
     response = agent(question.question)
-    return str(response.message)
+    return response.message
   
 
 async def main():
