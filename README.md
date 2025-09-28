@@ -9,6 +9,7 @@ Strands Agent API is a FastAPI-based service that exposes a multi-agent system c
 - Integration with GitHub Copilot MCP, AWS Docs MCP, and Kubernetes MCP
 - Extensible toolset (calculator, current time, document retrieval, etc.)
 - FastAPI endpoint for question answering
+- Streamlit frontend for interactive conversations
 
 ## Requirements
 
@@ -24,9 +25,9 @@ Strands Agent API is a FastAPI-based service that exposes a multi-agent system c
 pip install -r requirements.txt
 ```
 
-## Usage
+## Running the API Server
 
-Start the API server:
+Start the FastAPI server:
 
 ```sh
 python agent.py
@@ -38,14 +39,32 @@ Or with uvicorn directly:
 uvicorn agent:app --host 0.0.0.0 --port 8000
 ```
 
-## API Endpoints
+## Running the Streamlit Frontend
 
-### POST `/question`
+To interact with the agent via a web interface, start the Streamlit app (usually in `streamlit_app.py`):
 
-Ask a question to the agent.
+```sh
+streamlit run streamlit_app.py
+```
+
+- By default, Streamlit runs at [http://localhost:8501](http://localhost:8501).
+- The Streamlit app communicates with the FastAPI backend at `http://localhost:8000`.
+
+## Interacting with the Agent
+
+### Using Streamlit
+
+1. Open [http://localhost:8501](http://localhost:8501) in your browser.
+2. Enter your question in the chat interface.
+3. The agent will respond using its available tools and integrations.
+
+### Using the API Directly
+
+#### POST `/question`
+
+Ask a question to the agent:
 
 **Request Body:**
-
 ```json
 {
   "question": "What is the current time?",
@@ -54,11 +73,18 @@ Ask a question to the agent.
 ```
 
 **Response:**
-
 ```json
 {
   "message": "The current time is 2024-06-01T12:34:56Z"
 }
+```
+
+You can use `curl` or any HTTP client:
+
+```sh
+curl -X POST http://localhost:8000/question \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What is the current time?", "session_id": "your-session-id"}'
 ```
 
 ## Tooling
