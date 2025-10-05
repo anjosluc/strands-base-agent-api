@@ -48,21 +48,26 @@ aws_docs_mcp = MCPClient(
   )
 )
 
-#eks_mcp = MCPClient(
-#  lambda: stdio_client(
-#    StdioServerParameters(
-#      command="uvx", 
-#      args=[
-#        "awslabs.eks-mcp-server@latest", 
-#        "--allow-write", 
-#        "--allow-sensitive-data-access"
-#      ],
-#      env={
-#        "AWS_REGION":"us-east-1"
-#      }
-#    )
-#  )
-#)
+eks_mcp_envs = {}
+
+if len(os.getenv("AWS_PROFILE", "")) > 0:
+  eks_mcp_envs["AWS_PROFILE"] = os.environ["AWS_PROFILE"]
+if len(os.getenv("AWS_REGION", "")) > 0:
+  eks_mcp_envs["AWS_REGION"] = os.environ["AWS_REGION"]
+
+eks_mcp = MCPClient(
+  lambda: stdio_client(
+    StdioServerParameters(
+      command="uvx", 
+      args=[
+        "awslabs.eks-mcp-server@latest", 
+        "--allow-write", 
+        "--allow-sensitive-data-access"
+      ],
+      env=eks_mcp_envs
+    )
+  )
+)
 
 k8s_mcp = MCPClient(
   lambda: stdio_client(
@@ -73,7 +78,7 @@ k8s_mcp = MCPClient(
         "kubectl_mcp_tool"
       ],
       env={
-        "KUBECONFIG":"/Users/lucas/.kube/config"
+        "KUBECONFIG": os.getenv("KUBECONFIG", "~/.kube/config")
       }
     )
   )
@@ -83,13 +88,13 @@ tools = [calculator, current_time, retrieve]
 
 def get_strands_agent(session_id: str):
   session_manager = FileSessionManager(session_id=session_id)
-  with copilot_mcp, aws_docs_mcp, k8s_mcp:
+  with copilot_mcp, aws_docs_mcp, eks_mcp, k8s_mcp:
     copilot_tools = copilot_mcp.list_tools_sync()
     aws_docs_tools = aws_docs_mcp.list_tools_sync()
-    #eks_tools = eks_mcp.list_tools_sync()
+    eks_tools = eks_mcp.list_tools_sync()
     k8s_tools = k8s_mcp.list_tools_sync()
     
-    all_tools = tools + copilot_tools + aws_docs_tools + k8s_tools
+    all_tools = tools + copilot_tools + aws_docs_tools + k8s_tools + eks_tools 
 
     # Create a Strands agent
     agent = Agent(
@@ -110,7 +115,7 @@ class Question(BaseModel):
 def ask_question(question: Question):
   session_id = question.session_id
   agent = get_strands_agent(session_id)
-  with copilot_mcp, aws_docs_mcp, k8s_mcp:
+  with copilot_mcp, aws_docs_mcp, k8s_mcp, eks_mcp:
     response = agent(question.question)
     return response.message
   
