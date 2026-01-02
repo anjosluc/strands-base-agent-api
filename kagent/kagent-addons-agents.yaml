@@ -1,0 +1,161 @@
+apiVersion: kagent.dev/v1alpha2
+kind: ModelConfig
+metadata:
+  name: default-model-config
+  namespace: default
+spec:
+  apiKeySecret: kagent-gemini
+  apiKeySecretKey: GOOGLE_API_KEY  
+  model: gemini-2.5-flash
+  provider: Gemini
+  gemini: {}
+---
+apiVersion: kagent.dev/v1alpha1            
+kind: MCPServer     
+metadata:                     
+  name: argocd-mcp  
+  namespace: default
+spec:
+  deployment:       
+    args:
+    - argocd-mcp@latest
+    - stdio
+    cmd: npx        
+    env:
+      ARGOCD_API_TOKEN: ""
+      ARGOCD_BASE_URL: https://argocd-server.argocd.svc.cluster.local
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
+    image: node:24-alpine3.21
+    port: 3000
+  stdioTransport: {}
+  transportType: stdio
+---
+apiVersion: kagent.dev/v1alpha2
+kind: RemoteMCPServer
+metadata:
+  name: github-copilot
+  namespace: default
+spec:
+  description: ""
+  headersFrom:
+  - name: Authorization
+    value: Bearer ${GITHUB_COPILOT_API_KEY}
+  protocol: STREAMABLE_HTTP
+  sseReadTimeout: 5m0s
+  terminateOnClose: true
+  timeout: 50s
+  url: https://api.githubcopilot.com/mcp/
+---
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: platform-engineering-bot
+  namespace: default
+spec:
+  declarative:
+    modelConfig: default-model-config
+    stream: true
+    systemMessage: |-
+      You are the Platform Engineering Orchestrator. Your role is to manage the end-to-level lifecycle of infrastructure and applications using GitOps principles.
+
+      Just forward requests to the appropriate tools based on the context of the request. Do not attempt to do any logic yourself. Do not cache responses from tools.
+
+      # Core Principles
+      - **GitOps First**: When asked to deploy or change resources, prioritize using `github-copilot` to modify manifests and `argocd-mcp` to sync them.
+      - **Contextual Routing**: 
+        - Use `helm-agent` for chart-related logic.
+        - Use `k8s-agent` for live cluster inspection or troubleshooting.
+        - Use `observability-agent` for logs, metrics, or health checks.
+      - **Verify Before Action**: Before running `sync_application` or `update_application`, use `get_application` to check the current state.
+
+      # Instructions
+      - **Clarity**: If a request is ambiguous (e.g., "fix the app"), ask which namespace or application is affected before calling tools.
+      - **Error Handling**: If a tool returns an error (e.g., a 404 on a repo), explain why it failed and suggest a fix (e.g., "The repository doesn't exist, should I create it?").
+      - **No Hallucinations**: Do not guess resource names or Git SHAs. Use `list_applications` or `search_repositories` if you are unsure.
+      - **Safety**: Never perform destructive actions (like `delete_application`) without explicit user confirmation of the resource name.
+
+      # Response format:
+      - **Executive Summary**: Start with a 1-sentence summary of the status.
+      - **Action Log**: Use a Markdown list to detail specific tool calls (e.g., "Ran `sync_application` on `guestbook`").
+      - **Artifacts**: Display code snippets, YAML manifests, or PR links in fenced code blocks.
+      - **Next Steps**: Always suggest the logical next step (e.g., "The PR is created. Would you like me to monitor the ArgoCD sync once it's merged?").
+
+      # Support:
+      Refer to https://kagent.dev for complex troubleshooting.
+    tools:
+    - mcpServer:
+        apiGroup: kagent.dev
+        kind: MCPServer
+        name: argocd-mcp
+        toolNames:
+        - create_application
+        - get_application
+        - sync_application
+        - update_application
+        - list_applications
+        - get_resources
+        - run_resource_action
+        - get_resource_events
+        - delete_application
+      type: McpServer
+    - mcpServer:
+        apiGroup: kagent.dev
+        kind: RemoteMCPServer
+        name: github-copilot
+        toolNames:
+        - create_pull_request
+        - create_repository
+        - search_repositories
+        - search_code
+        - pull_request_read
+        - get_latest_release
+        - create_or_update_file
+        - add_comment_to_pending_review
+      type: McpServer
+    - agent:
+        apiGroup: kagent.dev
+        kind: Agent
+        name: helm-agent
+      type: Agent
+    - agent:
+        apiGroup: kagent.dev
+        kind: Agent
+        name: k8s-agent
+      type: Agent
+    - agent:
+        apiGroup: kagent.dev
+        kind: Agent
+        name: observability-agent
+      type: Agent
+    a2aConfig:
+      skills:
+        - id: gitops-deployment-skill
+          name: GitOps Deployment
+          description: Deploy or update applications by creating GitHub Pull Requests and syncing ArgoCD applications.
+          inputModes: [text]
+          outputModes: [text]
+          tags: [gitops, deployment, argocd, github]
+          examples:
+            - "Deploy the checkout service to the production namespace"
+            - "Update the image tag for the guestbook app to v2.0.0"
+        - id: platform-troubleshooting-skill
+          name: Infrastructure Troubleshooting
+          description: Analyze logs, metrics, and Kubernetes resource states to diagnose platform issues.
+          inputModes: [text]
+          outputModes: [text]
+          tags: [k8s, troubleshooting, observability]
+          examples:
+            - "Why is the backend-api pod crashing in the dev namespace?"
+            - "Check the health of the ingress controller"
+            - "Get k8s resources in the default namespace"
+        - id: repository-management-skill
+          name: Repository Management
+          description: Create and manage GitHub repositories, files, and Pull Requests.
+          inputModes: [text]
+          outputModes: [text]
+          tags: [github, git, repo]
+          examples:
+            - "Create a new repository for the payment-gateway project"
+            - "Add a README.md to the current repository"
+  description: Platform Engineering Bot agent
+  type: Declarative
