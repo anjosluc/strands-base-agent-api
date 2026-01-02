@@ -50,21 +50,26 @@ aws_docs_mcp = MCPClient(
   )
 )
 
-#eks_mcp = MCPClient(
-#  lambda: stdio_client(
-#    StdioServerParameters(
-#      command="uvx", 
-#      args=[
-#        "awslabs.eks-mcp-server@latest", 
-#        "--allow-write", 
-#        "--allow-sensitive-data-access"
-#      ],
-#      env={
-#        "AWS_REGION":"us-east-1"
-#      }
-#    )
-#  )
-#)
+eks_mcp_envs = {}
+
+if len(os.getenv("AWS_PROFILE", "")) > 0:
+  eks_mcp_envs["AWS_PROFILE"] = os.environ["AWS_PROFILE"]
+if len(os.getenv("AWS_REGION", "")) > 0:
+  eks_mcp_envs["AWS_REGION"] = os.environ["AWS_REGION"]
+
+eks_mcp = MCPClient(
+  lambda: stdio_client(
+    StdioServerParameters(
+      command="uvx", 
+      args=[
+        "awslabs.eks-mcp-server@latest", 
+        "--allow-write", 
+        "--allow-sensitive-data-access"
+      ],
+      env=eks_mcp_envs
+    )
+  )
+)
 
 #k8s_mcp = MCPClient(
 #  lambda: stdio_client(
