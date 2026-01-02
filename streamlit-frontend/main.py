@@ -45,7 +45,7 @@ if prompt := st.chat_input("What is up?"):
         
         # Send a POST request to the backend's /chat endpoint
         # You may need to adjust the timeout based on your backend's performance
-        response = requests.post(f"{BACKEND_URL}/question", json=payload, timeout=60)
+        response = requests.post(f"{BACKEND_URL}/question", json=payload, timeout=600000)
         
         # Raise an exception for bad status codes (4xx or 5xx)
         response.raise_for_status()
